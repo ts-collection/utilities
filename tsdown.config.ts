@@ -7,6 +7,6 @@ export default defineConfig({
   minify: true,
   exports: true,
   skipNodeModulesBundle: true,
-  entry: ['./src/index.ts', './src/functions/index.ts', './src/types/index.ts'],
+  entry: ['./src/index.ts'],
   treeshake: true,
 });
