@@ -39,7 +39,7 @@ yarn add @ts-utilities/core
 You can import individual utilities or types as needed:
 
 ```typescript
-import { deepmerge, poll, shield, sleep, debounce, throttle, getObjectValue, extendProps, hydrate } from '@ts-utilities/core';
+import { deepmerge, poll, shield, sleep, debounce, throttle, getObjectValue, extendProps, hydrate, withConcurrency } from '@ts-utilities/core';
 import type { DeepPartial, Primitive, KeysOfType } from '@ts-utilities/core';
 ```
 
@@ -94,7 +94,7 @@ const combined = deepmerge(
 #### Async Operations
 
 ```typescript
-import { poll, shield, sleep } from '@ts-utilities/core';
+import { poll, shield, sleep, withConcurrency } from '@ts-utilities/core';
 
 const result = await poll(async () => {
   const status = await checkStatus();
@@ -102,6 +102,35 @@ const result = await poll(async () => {
 }, { interval: 2000, timeout: 30000 });
 
 const [error, data] = await shield(fetchData());
+```
+
+#### Concurrent Operations
+
+```typescript
+import { withConcurrency } from '@ts-utilities/core';
+
+// Execute tasks with concurrency limit
+const tasks = [
+  () => fetch('/api/users').then(r => r.json()),
+  () => fetch('/api/posts').then(r => r.json()),
+  () => fetch('/api/comments').then(r => r.json()),
+];
+
+const result = await withConcurrency(tasks, { concurrency: 2, retry: 2 });
+// { results: [...], errors: [...], succeeded: 3, failed: 0, duration: 150 }
+
+// Named tasks with object
+const apiTasks = {
+  users: () => fetch('/api/users').then(r => r.json()),
+  posts: () => fetch('/api/posts').then(r => r.json()),
+};
+
+const { results, errors, succeeded, failed } = await withConcurrency(apiTasks, {
+  concurrency: 3,
+  timeout: 5000,
+  retry: 1,
+  throwOnFirstError: false
+});
 ```
 
 #### Debounce and Throttle
@@ -203,6 +232,34 @@ throttle<F extends (...args: any[]) => any>(
   wait?: number,
   options?: { leading?: boolean; trailing?: boolean }
 ): ThrottledFunction<F>
+
+withConcurrency<T>(
+  tasks: readonly (() => Promise<T>)[],
+  options?: ConcurrenceOptions
+): Promise<ConcurrenceResult<T[]>>
+
+withConcurrency<T>(
+  tasks: Record<string, () => Promise<T>>,
+  options?: ConcurrenceOptions
+): Promise<ConcurrenceResult<Record<string, T>>>
+
+type ConcurrenceResult<T> = {
+  results: T;
+  errors: Error[];
+  succeeded: number;
+  failed: number;
+  duration: number;
+}
+
+type ConcurrenceOptions = {
+  concurrency?: number;
+  timeout?: number;
+  signal?: AbortSignal;
+  retry?: number;
+  retryDelay?: number;
+  throwOnFirstError?: boolean;
+  ignoreErrors?: boolean;
+}
 ```
 
 ### Types
