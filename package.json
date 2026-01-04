@@ -1,6 +1,6 @@
 {
   "name": "@ts-utilities/core",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "author": "Sohan Emon <sohanemon@outlook.com>",
   "description": "Core utilities for JavaScript/TypeScript projects",
   "type": "module",
