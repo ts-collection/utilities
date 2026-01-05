@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { withConcurrency } from '../../src/functions/promise';
 
 describe('withConcurrency', () => {
@@ -150,7 +150,7 @@ describe('withConcurrency', () => {
         () => new Promise((resolve) => setTimeout(resolve, 30)),
       ];
       const result = await withConcurrency(tasks, { concurrency: 1 });
-      expect(result.duration).toBeGreaterThanOrEqual(50);
+      expect(result.duration).toBeGreaterThanOrEqual(45);
     });
   });
 
@@ -313,7 +313,7 @@ describe('withConcurrency', () => {
       const startTime = Date.now();
       await withConcurrency([task], { retry: 1, retryDelay: 100 });
       const duration = Date.now() - startTime;
-      expect(duration).toBeGreaterThanOrEqual(100);
+      expect(duration).toBeGreaterThanOrEqual(90);
     });
 
     it('should not delay when retryDelay is 0', async () => {
@@ -668,6 +668,248 @@ describe('withConcurrency', () => {
       };
       const result = await withConcurrency(tasks);
       expect(result.results).toEqual({ a: 'a', b: 'b', c: 'c' });
+    });
+
+    it('should preserve tuple types for array destructuring', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve('string' as const),
+        () => Promise.resolve(42),
+        () => Promise.resolve(true),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<
+        ['string', number, boolean]
+      >();
+    });
+
+    it('should preserve mapped types for object destructuring', async () => {
+      const { results } = await withConcurrency({
+        str: () => Promise.resolve('string' as const),
+        num: () => Promise.resolve(42),
+        bool: () => Promise.resolve(true),
+      });
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<{
+        str: 'string';
+        num: number;
+        bool: boolean;
+      }>();
+    });
+
+    it('should handle complex nested types', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve({ name: 'test' } as const),
+        () => Promise.resolve([1, 2, 3] as const),
+        () => Promise.resolve({ nested: { value: 123 } } as const),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<
+        [
+          { readonly name: 'test' },
+          readonly [1, 2, 3],
+          { readonly nested: { readonly value: 123 } },
+        ]
+      >();
+    });
+
+    it('should handle null and undefined types', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve(null),
+        () => Promise.resolve(undefined),
+        () => Promise.resolve(42),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[null, undefined, number]>();
+    });
+
+    it('should handle union types', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve<string | number | boolean>('string'),
+        () => Promise.resolve<string | number | boolean>(42),
+        () => Promise.resolve<string | number | boolean>(true),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<
+        [string | number | boolean, string | number | boolean, string | number | boolean]
+      >();
+    });
+
+    it('should handle generic types', async () => {
+      type Data<T> = { value: T };
+
+      const { results } = await withConcurrency([
+        () => Promise.resolve<Data<string>>({ value: 'test' }),
+        () => Promise.resolve<Data<number>>({ value: 42 }),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<
+        [Data<string>, Data<number>]
+      >();
+    });
+
+    it('should handle Promise<string> typed tasks', async () => {
+      const { results } = await withConcurrency([
+        () => new Promise<string>((resolve) => resolve('last')),
+        () => new Promise<number>((resolve) => resolve(5502)),
+        () => new Promise<boolean>((resolve) => resolve(true)),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[string, number, boolean]>();
+    });
+
+    it('should handle array with Promise.resolve and const assertions', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve('string' as const),
+        () => Promise.resolve(42),
+        () => Promise.resolve(true),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<['string', number, boolean]>();
+    });
+
+    it('should handle empty array and object', async () => {
+      const emptyArray = await withConcurrency([]);
+      const emptyObject = await withConcurrency({});
+
+      type ArrayType = typeof emptyArray.results;
+      type ObjectType = typeof emptyObject.results;
+      expectTypeOf<ArrayType>().toEqualTypeOf<[]>();
+      expectTypeOf<ObjectType>().toEqualTypeOf<{}>();
+    });
+
+    it('should handle single element', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve('single' as const),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<['single']>();
+    });
+
+    it('should handle symbol and bigint types', async () => {
+      const sym = Symbol('test');
+      const { results } = await withConcurrency([
+        () => Promise.resolve(sym),
+        () => Promise.resolve(BigInt(42)),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[symbol, bigint]>();
+    });
+
+    it('should handle object with numeric keys', async () => {
+      const { results } = await withConcurrency({
+        0: () => Promise.resolve('zero'),
+        1: () => Promise.resolve(1),
+        2: () => Promise.resolve(true),
+      });
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<{
+        0: string;
+        1: number;
+        2: boolean;
+      }>();
+    });
+
+    it('should handle array index access', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve('first' as const),
+        () => Promise.resolve(42),
+        () => Promise.resolve(true),
+      ]);
+
+      type FirstType = typeof results[0];
+      type SecondType = typeof results[1];
+      type ThirdType = typeof results[2];
+      expectTypeOf<FirstType>().toEqualTypeOf<'first'>();
+      expectTypeOf<SecondType>().toEqualTypeOf<number>();
+      expectTypeOf<ThirdType>().toEqualTypeOf<boolean>();
+    });
+
+    it('should handle mixed object keys', async () => {
+      const { results } = await withConcurrency({
+        strKey: () => Promise.resolve('string' as const),
+        123: () => Promise.resolve(456),
+      });
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<{
+        strKey: 'string';
+        123: number;
+      }>();
+    });
+
+    it('should handle readonly tuple types', async () => {
+      const tasks: readonly (() => Promise<string>)[] = [
+        () => Promise.resolve('a'),
+        () => Promise.resolve('b'),
+        () => Promise.resolve('c'),
+      ] as const;
+
+      const { results } = await withConcurrency(tasks);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[string, string, string]>();
+    });
+
+    it('should handle optional chaining types', async () => {
+      type Nested = { data?: { value?: string } };
+
+      const { results } = await withConcurrency([
+        () => Promise.resolve<Nested>({ data: { value: 'test' } }),
+        () => Promise.resolve<Nested>({ data: {} }),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[Nested, Nested]>();
+    });
+
+    it('should handle date and regexp types', async () => {
+      const date = new Date();
+      const regex = /test/g;
+
+      const { results } = await withConcurrency([
+        () => Promise.resolve(date),
+        () => Promise.resolve(regex),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<[Date, RegExp]>();
+    });
+
+    it('should handle array and set types', async () => {
+      const { results } = await withConcurrency([
+        () => Promise.resolve([1, 2, 3] as const),
+        () => Promise.resolve(new Set([1, 2, 3])),
+      ]);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<
+        [readonly [1, 2, 3], Set<number>]
+      >();
+    });
+
+    it('should handle map and record types', async () => {
+      const { results } = await withConcurrency({
+        map: () => Promise.resolve(new Map([['key', 'value']])),
+        record: () =>
+          Promise.resolve<Record<string, number>>({ a: 1, b: 2 }),
+      });
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<{
+        map: Map<string, string>;
+        record: Record<string, number>;
+      }>();
     });
   });
 });

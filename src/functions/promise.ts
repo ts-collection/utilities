@@ -1,5 +1,13 @@
 import { sleep } from './utils-core';
 
+type AwaitedTuple<T extends readonly (() => Promise<any>)[] | []> = {
+  -readonly [P in keyof T]: Awaited<ReturnType<T[P]>>;
+};
+
+type ObjectValues<T extends Record<string, () => Promise<any>>> = {
+  [K in keyof T]: Awaited<ReturnType<T[K]>>;
+};
+
 export type ConcurrenceResult<T> = {
   results: T;
   errors: Error[];
@@ -22,20 +30,26 @@ type TaskMap = {
   [key: string]: () => Promise<unknown>;
 };
 
-export async function withConcurrency<T>(
-  tasks: readonly (() => Promise<T>)[],
+export async function withConcurrency<
+  T extends readonly (() => Promise<any>)[] | [],
+>(
+  tasks: T,
   options?: ConcurrenceOptions,
-): Promise<ConcurrenceResult<T[]>>;
+): Promise<ConcurrenceResult<AwaitedTuple<T>>>;
 
-export async function withConcurrency<T>(
-  tasks: Record<string, () => Promise<T>>,
+export async function withConcurrency<
+  T extends Record<string, () => Promise<any>>,
+>(
+  tasks: T,
   options?: ConcurrenceOptions,
-): Promise<ConcurrenceResult<Record<string, T>>>;
+): Promise<ConcurrenceResult<ObjectValues<T>>>;
 
-export async function withConcurrency<T>(
-  tasks: readonly (() => Promise<T>)[] | Record<string, () => Promise<T>>,
+export async function withConcurrency(
+  tasks: readonly (() => Promise<any>)[] | Record<string, () => Promise<any>>,
   options: ConcurrenceOptions = {},
-): Promise<ConcurrenceResult<T[]> | ConcurrenceResult<Record<string, T>>> {
+): Promise<
+  ConcurrenceResult<unknown[]> | ConcurrenceResult<Record<string, unknown>>
+> {
   const {
     concurrency = Infinity,
     timeout = Infinity,
@@ -72,7 +86,7 @@ export async function withConcurrency<T>(
   }
 
   const start = Date.now();
-  const resultEntries: [string, T][] = [];
+  const resultEntries: [string, unknown][] = [];
   const errors: Error[] = [];
 
   let taskIndex = 0;
@@ -90,7 +104,7 @@ export async function withConcurrency<T>(
     while (attempt <= retry && !stopped) {
       try {
         const result = await taskMap[key]!();
-        resultEntries.push([key, result as T]);
+        resultEntries.push([key, result]);
         succeeded++;
         return;
       } catch (err) {
@@ -163,7 +177,7 @@ export async function withConcurrency<T>(
   }
 
   return {
-    results: Object.fromEntries(resultEntries) as Record<string, T>,
+    results: Object.fromEntries(resultEntries) as Record<string, unknown>,
     errors,
     succeeded,
     failed,
