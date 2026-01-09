@@ -1,11 +1,15 @@
 import { sleep } from './utils-core';
 
-type AwaitedTuple<T extends readonly (() => Promise<any>)[] | []> = {
-  -readonly [P in keyof T]: Awaited<ReturnType<T[P]>>;
+type TaskType<T> = Promise<T> | (() => Promise<T>);
+
+type AwaitedTuple<T extends readonly TaskType<any>[] | []> = {
+  -readonly [P in keyof T]: Awaited<
+    T[P] extends () => Promise<infer R> ? R : T[P]
+  >;
 };
 
-type ObjectValues<T extends Record<string, () => Promise<any>>> = {
-  [K in keyof T]: Awaited<ReturnType<T[K]>>;
+type ObjectValues<T extends Record<string, TaskType<any>>> = {
+  [K in keyof T]: Awaited<T[K] extends () => Promise<infer R> ? R : T[K]>;
 };
 
 export type ConcurrenceResult<T> = {
@@ -27,25 +31,21 @@ export type ConcurrenceOptions = {
 };
 
 type TaskMap = {
-  [key: string]: () => Promise<unknown>;
+  [key: string]: TaskType<unknown>;
 };
 
-export async function withConcurrency<
-  T extends readonly (() => Promise<any>)[] | [],
->(
+export async function withConcurrency<T extends readonly TaskType<any>[] | []>(
   tasks: T,
   options?: ConcurrenceOptions,
 ): Promise<ConcurrenceResult<AwaitedTuple<T>>>;
 
-export async function withConcurrency<
-  T extends Record<string, () => Promise<any>>,
->(
+export async function withConcurrency<T extends Record<string, TaskType<any>>>(
   tasks: T,
   options?: ConcurrenceOptions,
 ): Promise<ConcurrenceResult<ObjectValues<T>>>;
 
 export async function withConcurrency(
-  tasks: readonly (() => Promise<any>)[] | Record<string, () => Promise<any>>,
+  tasks: readonly TaskType<any>[] | Record<string, TaskType<any>>,
   options: ConcurrenceOptions = {},
 ): Promise<
   ConcurrenceResult<unknown[]> | ConcurrenceResult<Record<string, unknown>>
@@ -103,7 +103,8 @@ export async function withConcurrency(
 
     while (attempt <= retry && !stopped) {
       try {
-        const result = await taskMap[key]!();
+        const task = taskMap[key];
+        const result = await (typeof task === 'function' ? task() : task);
         resultEntries.push([key, result]);
         succeeded++;
         return;

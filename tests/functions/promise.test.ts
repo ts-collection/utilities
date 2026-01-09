@@ -580,6 +580,137 @@ describe('withConcurrency', () => {
     });
   });
 
+  describe('promise vs function', () => {
+    it('should handle direct Promise inputs', async () => {
+      const tasks = [
+        Promise.resolve('a'),
+        Promise.resolve(42),
+        Promise.resolve(true),
+      ];
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual(['a', 42, true]);
+      expect(result.succeeded).toBe(3);
+      expect(result.failed).toBe(0);
+    });
+
+    it('should handle function returning Promise inputs', async () => {
+      const tasks = [
+        () => Promise.resolve('a'),
+        () => Promise.resolve(42),
+        () => Promise.resolve(true),
+      ];
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual(['a', 42, true]);
+      expect(result.succeeded).toBe(3);
+      expect(result.failed).toBe(0);
+    });
+
+    it('should handle mixed Promise and function inputs', async () => {
+      const tasks = [
+        Promise.resolve('a'),
+        () => Promise.resolve(42),
+        Promise.resolve(true),
+        () => Promise.resolve({ key: 'value' }),
+      ];
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual(['a', 42, true, { key: 'value' }]);
+      expect(result.succeeded).toBe(4);
+      expect(result.failed).toBe(0);
+    });
+
+    it('should handle direct Promise rejections', async () => {
+      const tasks = [
+        Promise.resolve('ok'),
+        Promise.reject(new Error('fail')),
+        Promise.resolve('ok2'),
+      ];
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual(['ok', 'ok2']);
+      expect(result.succeeded).toBe(2);
+      expect(result.failed).toBe(1);
+    });
+
+    it('should handle function rejections with mixed inputs', async () => {
+      const tasks = [
+        Promise.resolve('a'),
+        () => Promise.reject(new Error('fail')),
+        Promise.resolve('c'),
+        () => Promise.resolve('d'),
+      ];
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual(['a', 'c', 'd']);
+      expect(result.succeeded).toBe(3);
+      expect(result.failed).toBe(1);
+    });
+
+    it('should not retry direct Promises (already executed)', async () => {
+      const task = Promise.reject(new Error('fail'));
+      const result = await withConcurrency([task], { retry: 1 });
+      expect(result.results).toEqual([]);
+      expect(result.succeeded).toBe(0);
+      expect(result.failed).toBe(1);
+    });
+
+    it('should handle object with direct Promises', async () => {
+      const tasks = {
+        a: Promise.resolve('a'),
+        b: Promise.resolve(42),
+        c: Promise.resolve(true),
+      };
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual({ a: 'a', b: 42, c: true });
+      expect(result.succeeded).toBe(3);
+    });
+
+    it('should handle object with mixed Promise and function inputs', async () => {
+      const tasks = {
+        a: Promise.resolve('a'),
+        b: () => Promise.resolve(42),
+        c: Promise.resolve(true),
+        d: () => Promise.resolve({ key: 'value' }),
+      };
+      const result = await withConcurrency(tasks);
+      expect(result.results).toEqual({
+        a: 'a',
+        b: 42,
+        c: true,
+        d: { key: 'value' },
+      });
+      expect(result.succeeded).toBe(4);
+    });
+
+    it('should handle delayed Promises with concurrency', async () => {
+      const tasks = [
+        new Promise((resolve) => setTimeout(() => resolve('a'), 20)),
+        () => new Promise((resolve) => setTimeout(() => resolve('b'), 10)),
+        new Promise((resolve) => setTimeout(() => resolve('c'), 15)),
+      ];
+      const result = await withConcurrency(tasks, { concurrency: 2 });
+      expect(result.results).toEqual(['a', 'b', 'c']);
+      expect(result.succeeded).toBe(3);
+    });
+
+    it('should preserve types with direct Promises', async () => {
+      const tasks = [
+        Promise.resolve('string' as const),
+        Promise.resolve(42),
+        Promise.resolve(true),
+      ];
+      const { results } = await withConcurrency(tasks);
+
+      type ResultType = typeof results;
+      expectTypeOf<ResultType>().toEqualTypeOf<['string', number, boolean]>();
+    });
+
+    it('should handle retry with direct Promise that always fails', async () => {
+      const task = Promise.reject(new Error('fail'));
+      const result = await withConcurrency([task], { retry: 2 });
+      expect(result.results).toEqual([]);
+      expect(result.succeeded).toBe(0);
+      expect(result.failed).toBe(1);
+    });
+  });
+
   describe('real-world scenarios', () => {
     it('should simulate API requests with retry and concurrency', async () => {
       let requestCount = 0;
@@ -678,9 +809,7 @@ describe('withConcurrency', () => {
       ]);
 
       type ResultType = typeof results;
-      expectTypeOf<ResultType>().toEqualTypeOf<
-        ['string', number, boolean]
-      >();
+      expectTypeOf<ResultType>().toEqualTypeOf<['string', number, boolean]>();
     });
 
     it('should preserve mapped types for object destructuring', async () => {
@@ -735,7 +864,11 @@ describe('withConcurrency', () => {
 
       type ResultType = typeof results;
       expectTypeOf<ResultType>().toEqualTypeOf<
-        [string | number | boolean, string | number | boolean, string | number | boolean]
+        [
+          string | number | boolean,
+          string | number | boolean,
+          string | number | boolean,
+        ]
       >();
     });
 
@@ -748,9 +881,7 @@ describe('withConcurrency', () => {
       ]);
 
       type ResultType = typeof results;
-      expectTypeOf<ResultType>().toEqualTypeOf<
-        [Data<string>, Data<number>]
-      >();
+      expectTypeOf<ResultType>().toEqualTypeOf<[Data<string>, Data<number>]>();
     });
 
     it('should handle Promise<string> typed tasks', async () => {
@@ -827,9 +958,9 @@ describe('withConcurrency', () => {
         () => Promise.resolve(true),
       ]);
 
-      type FirstType = typeof results[0];
-      type SecondType = typeof results[1];
-      type ThirdType = typeof results[2];
+      type FirstType = (typeof results)[0];
+      type SecondType = (typeof results)[1];
+      type ThirdType = (typeof results)[2];
       expectTypeOf<FirstType>().toEqualTypeOf<'first'>();
       expectTypeOf<SecondType>().toEqualTypeOf<number>();
       expectTypeOf<ThirdType>().toEqualTypeOf<boolean>();
@@ -901,8 +1032,7 @@ describe('withConcurrency', () => {
     it('should handle map and record types', async () => {
       const { results } = await withConcurrency({
         map: () => Promise.resolve(new Map([['key', 'value']])),
-        record: () =>
-          Promise.resolve<Record<string, number>>({ a: 1, b: 2 }),
+        record: () => Promise.resolve<Record<string, number>>({ a: 1, b: 2 }),
       });
 
       type ResultType = typeof results;
