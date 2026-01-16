@@ -84,7 +84,7 @@ export function extract<
   obj: T,
   paths: P,
   defaultValue: D,
-): { readonly [K in keyof P]: GetValue<T, SplitPath<P[K] & string>> | D };
+): { readonly [K in keyof P]: GetValue<T, SplitPath<P[K]>> | D };
 
 /**
  * Get multiple nested values from an object using dot notation paths
@@ -104,7 +104,7 @@ export function extract<
   obj: T,
   paths: P,
 ): {
-  readonly [K in keyof P]: GetValue<T, SplitPath<P[K] & string>> | undefined;
+  readonly [K in keyof P]: GetValue<T, SplitPath<P[K]>> | undefined;
 };
 
 /**
@@ -188,11 +188,6 @@ export function extract(
       }
     }
     return result;
-  }
-
-  // Validate path type and handle edge cases
-  if (typeof path !== 'string') {
-    return defaultValue;
   }
 
   // Validate path type and handle edge cases
