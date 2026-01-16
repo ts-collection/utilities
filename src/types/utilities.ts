@@ -466,14 +466,19 @@ export type Prettify<T> = T extends infer U
  *
  * @example
  * ```ts
- * type User = {
+ * interface User {
  *   name: string;
  *   profile: { age: number; address: { city: string } };
  *   tags: string[];
- * };
+ * }
  *
  * type UserPaths = NestedKeyOf<User>;
  * // 'name' | 'profile' | 'profile.age' | 'profile.address' | 'profile.address.city' | 'tags'
+ *
+ * // For literal arrays with objects (assumes const context):
+ * const obj = { items: [{ id: 1 }, { id: 2 }] };
+ * type ObjPaths = NestedKeyOf<typeof obj>;
+ * // 'items' | `items.${number}` | `items.${number}.id`
  * ```
  */
 export type NestedKeyOf<
@@ -482,27 +487,38 @@ export type NestedKeyOf<
 > = {
   [Key in keyof ObjectType & string]: Key extends IgnoreKeys
     ? never
-    : ObjectType[Key] extends object
-      ? ObjectType[Key] extends Array<any>
-        ? Key
-        : `${Key}` | `${Key}.${NestedKeyOf<ObjectType[Key], IgnoreKeys>}`
-      : `${Key}`;
+    : ObjectType[Key] extends readonly (infer U)[]
+      ? U extends object
+        ? ObjectType[Key] extends readonly [any, ...any[]]
+          ?
+              | Key
+              | `${Key}.${keyof ObjectType[Key] & `${number}`}`
+              | `${Key}.${keyof ObjectType[Key] & `${number}`}.${NestedKeyOf<U, IgnoreKeys>}`
+          :
+              | Key
+              | `${Key}.${number}`
+              | `${Key}.${number}.${NestedKeyOf<U, IgnoreKeys>}`
+        : Key
+      : ObjectType[Key] extends object
+        ? `${Key}` | `${Key}.${NestedKeyOf<ObjectType[Key], IgnoreKeys>}`
+        : `${Key}`;
 }[keyof ObjectType & string];
 
 /**
  * Creates a type that excludes properties present in another type.
- *
+
  * This is useful for creating mutually exclusive types.
- *
+
  * @template T - The base type
  * @template U - The type whose properties to exclude
  * @returns A type with properties from T that are not in U
  *
+
  * @example
  * ```ts
  * type A = { x: number; y: string };
  * type B = { y: string };
- * type WithoutB = Without<A, B>; // { x?: never }
+ * type Result = Without<A, B>; // { x?: never }
  * ```
  */
 export type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };

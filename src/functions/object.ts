@@ -1,3 +1,5 @@
+import type { NestedKeyOf } from '../types';
+
 /**
  * Type representing a path split into segments
  * @template S - The original path string type
@@ -25,54 +27,25 @@ type GetValue<T, K extends Array<string | number>> = K extends [
   : T;
 
 /**
- * Get a nested value from an object using array path segments
- * @template T - Object type
- * @template K - Path segments array type
- * @template D - Default value type
- * @param obj - Source object
- * @param path - Array of path segments
- * @param defaultValue - Fallback value if path not found
- * @returns Value at path or default value
- *
- * @example
- * getObjectValue({a: [{b: 1}]}, ['a', 0, 'b']) // 1
- */
-export function getObjectValue<T, K extends Array<string | number>, D>(
-  obj: T,
-  path: K,
-  defaultValue: D,
-): Exclude<GetValue<T, K>, undefined> | D;
-
-/**
- * Get a nested value from an object using array path segments
- * @template T - Object type
- * @template K - Path segments array type
- * @param obj - Source object
- * @param path - Array of path segments
- * @returns Value at path or undefined
- *
- * @example
- * getObjectValue({a: [{b: 1}]}, ['a', 0, 'b']) // 1
- */
-export function getObjectValue<T, K extends Array<string | number>>(
-  obj: T,
-  path: K,
-): GetValue<T, K> | undefined;
-
-/**
  * Get a nested value from an object using dot notation path
  * @template T - Object type
- * @template S - Path string literal type
+ * @template S - Valid path string type constrained by object structure
  * @template D - Default value type
  * @param obj - Source object
- * @param path - Dot-separated path string
+ * @param path - Dot-separated path string (constrained to valid paths)
  * @param defaultValue - Fallback value if path not found
  * @returns Value at path or default value
  *
  * @example
- * getObjectValue({a: [{b: 1}]}, 'a.0.b', 2) // 1
+ * // use as const for better type safety for arrays
+ * getObjectValue({a: [{b: 1}]} as const, 'a.0.b', 2) // 1
+ * getObjectValue({a: {b: 1}}, 'a.b', 2) // 1
  */
-export function getObjectValue<T, S extends string, D>(
+export function getObjectValue<
+  const T extends object,
+  S extends NestedKeyOf<T>,
+  D,
+>(
   obj: T,
   path: S,
   defaultValue: D,
@@ -81,60 +54,52 @@ export function getObjectValue<T, S extends string, D>(
 /**
  * Get a nested value from an object using dot notation path
  * @template T - Object type
- * @template S - Path string literal type
+ * @template S - Valid path string type constrained by object structure
  * @param obj - Source object
- * @param path - Dot-separated path string
+ * @param path - Dot-separated path string (constrained to valid paths)
  * @returns Value at path or undefined
  *
  * @example
  * getObjectValue({a: [{b: 1}]}, 'a.0.b') // 1
  */
-export function getObjectValue<T, S extends string>(
-  obj: T,
-  path: S,
-): GetValue<T, SplitPath<S>> | undefined;
+export function getObjectValue<
+  const T extends object,
+  S extends NestedKeyOf<T>,
+>(obj: T, path: S): GetValue<T, SplitPath<S>> | undefined;
 
 /**
  * Core implementation of getObjectValue with runtime type checking.
  *
- * Handles both dot-notation strings and array paths, with support for nested objects and arrays.
+ * Handles dot-notation strings with support for nested objects and arrays.
  * Performs validation and safe navigation to prevent runtime errors.
  *
  * @param obj - The source object to traverse
- * @param path - Path as string (dot-separated) or array of keys/indices
+ * @param path - Path as dot-separated string
  * @param defaultValue - Value to return if path doesn't exist
  * @returns The value at the specified path, or defaultValue if not found
  *
  * @example
  * ```ts
  * getObjectValue({ a: { b: 1 } }, 'a.b') // 1
- * getObjectValue({ a: [1, 2] }, ['a', 0]) // 1
+ * getObjectValue({ a: [{ b: 1 }] }, 'a.0.b') // 1
  * getObjectValue({}, 'missing.path', 'default') // 'default'
  * ```
  */
 export function getObjectValue(
   obj: any,
-  path: string | Array<string | number>,
+  path: string,
   defaultValue?: any,
 ): any {
   // Validate path type and handle edge cases
-  if (typeof path !== 'string' && !Array.isArray(path)) {
+  if (typeof path !== 'string') {
     return defaultValue;
   }
 
   // Ensure pathArray is always an array
   const pathArray = (() => {
-    if (Array.isArray(path)) return path;
     if (path === '') return [];
-    return String(path)
-      .split('.')
-      .filter((segment) => segment !== '');
+    return path.split('.').filter((segment) => segment !== '');
   })();
-
-  // Final safety check for array type
-  if (!Array.isArray(pathArray)) {
-    return defaultValue;
-  }
 
   let current = obj;
 

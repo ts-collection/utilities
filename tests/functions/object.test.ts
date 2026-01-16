@@ -7,9 +7,9 @@ describe('getObjectValue', () => {
     expect(getObjectValue(obj, 'a.b.c')).toBe(42);
   });
 
-  it('should get nested value with array path', () => {
+  it('should get nested value with numeric indices in path', () => {
     const obj = { a: [{ b: 42 }] };
-    expect(getObjectValue(obj, ['a', 0, 'b'])).toBe(42);
+    expect(getObjectValue(obj, 'a.0.b')).toBe(42);
   });
 
   it('should return default value when path not found', () => {
