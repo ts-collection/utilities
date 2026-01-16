@@ -21,6 +21,26 @@ describe('getObjectValue', () => {
     const obj = { a: 1 };
     expect(getObjectValue(obj, 'b')).toBeUndefined();
   });
+
+  it('should get multiple values with array of paths', () => {
+    const obj = { a: [{ b: 1 }, { b: 2 }] };
+    expect(getObjectValue(obj, ['a.0.b', 'a.1.b'])).toEqual([1, 2]);
+  });
+
+  it('should get multiple values with default when some paths not found', () => {
+    const obj = { a: [{ b: 1 }] };
+    expect(getObjectValue(obj, ['a.0.b', 'a.1.b'], 0)).toEqual([1, 0]);
+  });
+
+  it('should return array of undefined for not found paths without default', () => {
+    const obj = { a: 1 };
+    expect(getObjectValue(obj, ['b', 'c'])).toEqual([undefined, undefined]);
+  });
+
+  it('should handle mixed valid and invalid paths in array', () => {
+    const obj = { a: { b: 1 }, c: 2 };
+    expect(getObjectValue(obj, ['a.b', 'd', 'c'])).toEqual([1, undefined, 2]);
+  });
 });
 
 describe('extendProps', () => {
