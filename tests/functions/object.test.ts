@@ -41,6 +41,29 @@ describe('getObjectValue', () => {
     const obj = { a: { b: 1 }, c: 2 };
     expect(getObjectValue(obj, ['a.b', 'd', 'c'])).toEqual([1, undefined, 2]);
   });
+
+  it('should get multiple values with object mapping', () => {
+    const obj = { a: [{ b: 1 }, { b: 2 }] };
+    expect(getObjectValue(obj, { first: 'a.0.b', second: 'a.1.b' })).toEqual({
+      first: 1,
+      second: 2,
+    });
+  });
+
+  it('should get multiple values with object mapping and default', () => {
+    const obj = { a: [{ b: 1 }] };
+    expect(getObjectValue(obj, { first: 'a.0.b', second: 'a.1.b' }, 0)).toEqual(
+      { first: 1, second: 0 },
+    );
+  });
+
+  it('should handle object mapping with invalid paths', () => {
+    const obj = { a: { b: 1 } };
+    expect(getObjectValue(obj, { valid: 'a.b', invalid: 'c.d' })).toEqual({
+      valid: 1,
+      invalid: undefined,
+    });
+  });
 });
 
 describe('extendProps', () => {

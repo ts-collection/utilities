@@ -112,13 +112,55 @@ export function getObjectValue<
 };
 
 /**
+ * Get multiple nested values from an object using dot notation paths mapped to keys
+ * @template T - Object type
+ * @template S - Record mapping keys to path strings
+ * @template D - Default value type
+ * @param obj - Source object
+ * @param paths - Record with keys as output keys and values as dot-separated path strings
+ * @param defaultValue - Fallback value if any path not found
+ * @returns Object with the same keys as paths, values at paths or default values
+ *
+ * @example
+ * getObjectValue({a: [{b: 1}, {b: 2}]}, {first: 'a.0.b', second: 'a.1.b'}, 0) // {first: 1, second: 2}
+ */
+export function getObjectValue<
+  const T extends object,
+  const S extends Record<string, string>,
+  D,
+>(
+  obj: T,
+  paths: S,
+  defaultValue: D,
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K]>> | D };
+
+/**
+ * Get multiple nested values from an object using dot notation paths mapped to keys
+ * @template T - Object type
+ * @template S - Record mapping keys to path strings
+ * @param obj - Source object
+ * @param paths - Record with keys as output keys and values as dot-separated path strings
+ * @returns Object with the same keys as paths, values at paths or undefined
+ *
+ * @example
+ * getObjectValue({a: [{b: 1}, {b: 2}]}, {first: 'a.0.b', second: 'a.1.b'}) // {first: 1, second: 2}
+ */
+export function getObjectValue<
+  const T extends object,
+  const S extends Record<string, string>,
+>(
+  obj: T,
+  paths: S,
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K]>> | undefined };
+
+/**
  * Core implementation of getObjectValue with runtime type checking.
  *
  * Handles dot-notation strings and arrays of strings with support for nested objects and arrays.
  * Performs validation and safe navigation to prevent runtime errors.
  *
  * @param obj - The source object to traverse
- * @param path - Path as dot-separated string or array of such strings
+ * @param path - Path as dot-separated string, array of such strings, or record mapping keys to paths
  * @param defaultValue - Value to return if path doesn't exist
  * @returns The value at the specified path(s), or defaultValue if not found
  *
@@ -128,16 +170,33 @@ export function getObjectValue<
  * getObjectValue({ a: [{ b: 1 }] }, 'a.0.b') // 1
  * getObjectValue({}, 'missing.path', 'default') // 'default'
  * getObjectValue({ a: [{ b: 1 }, { b: 2 }] }, ['a.0.b', 'a.1.b']) // [1, 2]
+ * getObjectValue({ a: [{ b: 1 }, { b: 2 }] }, { first: 'a.0.b', second: 'a.1.b' }) // { first: 1, second: 2 }
  * ```
  */
 export function getObjectValue(
   obj: any,
-  path: string | string[],
+  path: string | string[] | Record<string, string>,
   defaultValue?: any,
 ): any {
   // Handle array of paths
   if (Array.isArray(path)) {
     return path.map((p) => getObjectValue(obj, p, defaultValue));
+  }
+
+  // Handle object mapping keys to paths
+  if (typeof path === 'object' && path !== null && !Array.isArray(path)) {
+    const result: any = {};
+    for (const key in path) {
+      if (path.hasOwnProperty(key)) {
+        result[key] = getObjectValue(obj, path[key] as string, defaultValue);
+      }
+    }
+    return result;
+  }
+
+  // Validate path type and handle edge cases
+  if (typeof path !== 'string') {
+    return defaultValue;
   }
 
   // Validate path type and handle edge cases
