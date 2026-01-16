@@ -11,7 +11,7 @@
 
 ## Features
 
-- **Object Utilities**: Functions to access and manipulate nested object properties
+- **Object Utilities**: Flexible value extraction from nested objects using paths, arrays, or key mappings
 - **Data Transformation**: Deep merging, null-to-undefined conversion, and more
 - **Async Operations**: Polling, scheduling, debouncing, throttling, and safe async execution
 - **General Utilities**: Debounce, throttle, sleep, printf, and other common utilities
@@ -39,7 +39,7 @@ yarn add @ts-utilities/core
 You can import individual utilities or types as needed:
 
 ```typescript
-import { deepmerge, poll, shield, sleep, debounce, throttle, getObjectValue, extendProps, hydrate, withConcurrency } from '@ts-utilities/core';
+import { deepmerge, poll, shield, sleep, debounce, throttle, extract, extendProps, hydrate, withConcurrency } from '@ts-utilities/core';
 import type { DeepPartial, Primitive, KeysOfType } from '@ts-utilities/core';
 ```
 
@@ -48,10 +48,16 @@ import type { DeepPartial, Primitive, KeysOfType } from '@ts-utilities/core';
 #### Object Utilities
 
 ```typescript
-import { getObjectValue, extendProps } from '@ts-utilities/core';
+import { extract, extendProps } from '@ts-utilities/core';
 
 const obj = { a: { b: { c: 1 } } };
-const value = getObjectValue(obj, 'a.b.c'); // 1
+const value = extract(obj, 'a.b.c'); // 1
+
+// Extract multiple values as an array
+const [first, second] = extract(obj, ['a.b.c', 'a.b']); // [1, { c: 1 }]
+
+// Extract multiple values as an object
+const { first: f, second: s } = extract(obj, { first: 'a.b.c', second: 'a.b' }); // { first: 1, second: { c: 1 } }
 
 const extended = extendProps({ a: 1 }, { b: 'hello' }); // { a: 1, b: 'hello' }
 ```
@@ -158,27 +164,38 @@ type StringKeys = KeysOfType<User, string>;
 
 #### Object Utilities
 ```typescript
-getObjectValue<T, K extends Array<string | number>, D>(
-  obj: T,
-  path: K,
-  defaultValue: D
-): Exclude<GetValue<T, K>, undefined> | D;
-
-getObjectValue<T, K extends Array<string | number>>(
-  obj: T,
-  path: K
-): GetValue<T, K> | undefined;
-
-getObjectValue<T, S extends string, D>(
+extract<const T extends object, S extends NestedKeyOf<T>, D>(
   obj: T,
   path: S,
   defaultValue: D
 ): Exclude<GetValue<T, SplitPath<S>>, undefined> | D;
 
-getObjectValue<T, S extends string>(
+extract<const T extends object, S extends NestedKeyOf<T>>(
   obj: T,
   path: S
 ): GetValue<T, SplitPath<S>> | undefined;
+
+extract<const T extends object, const S extends readonly string[], D>(
+  obj: T,
+  paths: S,
+  defaultValue: D
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K] & string>> | D };
+
+extract<const T extends object, const S extends readonly string[]>(
+  obj: T,
+  paths: S
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K] & string>> | undefined };
+
+extract<const T extends object, const S extends Record<string, string>, D>(
+  obj: T,
+  paths: S,
+  defaultValue: D
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K]>> | D };
+
+extract<const T extends object, const S extends Record<string, string>>(
+  obj: T,
+  paths: S
+): { readonly [K in keyof S]: GetValue<T, SplitPath<S[K]>> | undefined };
 
 extendProps<T, P extends object>(
   base: T,

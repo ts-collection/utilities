@@ -1,50 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { extendProps, getObjectValue } from '../../src/functions/object';
+import { extendProps, extract } from '../../src/functions';
 
-describe('getObjectValue', () => {
+const obj = { a: [{ b: 1 }, { b: 2 }] };
+const b = extract(obj, 'a.0.b');
+const [a1, a2b] = extract(obj, ['a.1', 'a.2.b']);
+const { a1o, a2bo } = extract(obj, { a1o: 'a.1', a2bo: 'a.2.b' });
+
+describe('extract', () => {
   it('should get nested value with dot notation', () => {
     const obj = { a: { b: { c: 42 } } };
-    expect(getObjectValue(obj, 'a.b.c')).toBe(42);
+    expect(extract(obj, 'a.b.c')).toBe(42);
   });
 
   it('should get nested value with numeric indices in path', () => {
     const obj = { a: [{ b: 42 }] };
-    expect(getObjectValue(obj, 'a.0.b')).toBe(42);
+    expect(extract(obj, 'a.0.b')).toBe(42);
   });
 
   it('should return default value when path not found', () => {
     const obj = { a: 1 };
-    expect(getObjectValue(obj, 'b', 'default')).toBe('default');
+    expect(extract(obj, 'b', 'default')).toBe('default');
   });
 
   it('should return undefined when path not found and no default', () => {
     const obj = { a: 1 };
-    expect(getObjectValue(obj, 'b')).toBeUndefined();
+    expect(extract(obj, 'b')).toBeUndefined();
   });
 
   it('should get multiple values with array of paths', () => {
     const obj = { a: [{ b: 1 }, { b: 2 }] };
-    expect(getObjectValue(obj, ['a.0.b', 'a.1.b'])).toEqual([1, 2]);
+    expect(extract(obj, ['a.0.b', 'a.1.b'])).toEqual([1, 2]);
   });
 
   it('should get multiple values with default when some paths not found', () => {
     const obj = { a: [{ b: 1 }] };
-    expect(getObjectValue(obj, ['a.0.b', 'a.1.b'], 0)).toEqual([1, 0]);
+    expect(extract(obj, ['a.0.b', 'a.1.b'], 0)).toEqual([1, 0]);
   });
 
   it('should return array of undefined for not found paths without default', () => {
     const obj = { a: 1 };
-    expect(getObjectValue(obj, ['b', 'c'])).toEqual([undefined, undefined]);
+    expect(extract(obj, ['b', 'c'])).toEqual([undefined, undefined]);
   });
 
   it('should handle mixed valid and invalid paths in array', () => {
     const obj = { a: { b: 1 }, c: 2 };
-    expect(getObjectValue(obj, ['a.b', 'd', 'c'])).toEqual([1, undefined, 2]);
+    expect(extract(obj, ['a.b', 'd', 'c'])).toEqual([1, undefined, 2]);
   });
 
   it('should get multiple values with object mapping', () => {
     const obj = { a: [{ b: 1 }, { b: 2 }] };
-    expect(getObjectValue(obj, { first: 'a.0.b', second: 'a.1.b' })).toEqual({
+    expect(extract(obj, { first: 'a.0.b', second: 'a.1.b' })).toEqual({
       first: 1,
       second: 2,
     });
@@ -52,14 +57,15 @@ describe('getObjectValue', () => {
 
   it('should get multiple values with object mapping and default', () => {
     const obj = { a: [{ b: 1 }] };
-    expect(getObjectValue(obj, { first: 'a.0.b', second: 'a.1.b' }, 0)).toEqual(
-      { first: 1, second: 0 },
-    );
+    expect(extract(obj, { first: 'a.0.b', second: 'a.1.b' }, 0)).toEqual({
+      first: 1,
+      second: 0,
+    });
   });
 
   it('should handle object mapping with invalid paths', () => {
     const obj = { a: { b: 1 } };
-    expect(getObjectValue(obj, { valid: 'a.b', invalid: 'c.d' })).toEqual({
+    expect(extract(obj, { valid: 'a.b', invalid: 'c.d' })).toEqual({
       valid: 1,
       invalid: undefined,
     });

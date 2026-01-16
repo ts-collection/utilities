@@ -1,4 +1,5 @@
 export * from './deepmerge';
+export * from './extract';
 export * from './hydrate';
 export * from './object';
 export * from './poll';
