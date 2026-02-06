@@ -522,3 +522,33 @@ export type NestedKeyOf<
  * ```
  */
 export type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+
+/**
+ * Represents a value that can be either a direct value or a function that returns that value.
+ *
+ * This is useful for allowing consumers to provide either a static value or a computed value
+ * via a function, commonly used for lazy evaluation or context-dependent values.
+ *
+ * @template T - The type of the value
+ * @template A - The tuple type of arguments the function accepts (defaults to empty array)
+ * @returns Either the value directly or a function that returns the value
+ *
+ * @example
+ * ```ts
+ * type ConfigValue = MaybeFunction<string, [string]>;
+ * const directValue: ConfigValue = 'hello';
+ * const computedValue: ConfigValue = (name) => `Hello, ${name}`;
+ *
+ * function getValue<T, A extends unknown[]>(
+ *   maybeFn: MaybeFunction<T, A>,
+ *   ...args: A
+ * ): T {
+ *   return typeof maybeFn === 'function' ? maybeFn(...args) : maybeFn;
+ * }
+ *
+ * const result = getValue(computedValue, 'World'); // 'Hello, World'
+ * ```
+ */
+export type MaybeFunction<T, A extends unknown[] = []> =
+  | T
+  | ((...args: A) => T);

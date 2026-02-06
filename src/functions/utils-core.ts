@@ -1,3 +1,5 @@
+import type { MaybeFunction } from '../types';
+
 /**
  * Converts various case styles (camelCase, PascalCase, kebab-case, snake_case) into readable normal case.
  *
@@ -447,4 +449,41 @@ export function normalizeText(
   }
 
   return result;
+}
+
+/**
+ * Unwraps a value that may be either a direct value or a function that returns that value.
+ *
+ * If the value is a function, it will be called with the provided arguments and its return
+ * value will be returned. If the value is not a function, it will be returned as-is.
+ *
+ * This is useful for handling configuration options that can be either static values
+ * or computed values based on context.
+ *
+ * @typeParam T - The type of the value
+ * @typeParam A - The tuple type of arguments the function accepts (defaults to empty array)
+ *
+ * @param value - Either a direct value or a function that returns the value
+ * @param args - Arguments to pass if the value is a function
+ * @returns The unwrapped value
+ *
+ * @example
+ * ```ts
+ * // Direct value
+ * const direct = unwrap('hello'); // 'hello'
+ *
+ * // Function value
+ * const computed = unwrap((name: string) => `Hello, ${name}`, 'World'); // 'Hello, World'
+ *
+ * // No arguments needed
+ * const lazy = unwrap(() => expensiveComputation()); // result of expensiveComputation()
+ * ```
+ */
+export function unwrap<T, A extends unknown[] = []>(
+  value: MaybeFunction<T, A>,
+  ...args: A
+): T {
+  return typeof value === 'function'
+    ? (value as (...args: A) => T)(...args)
+    : value;
 }

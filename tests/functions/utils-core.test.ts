@@ -8,6 +8,7 @@ import {
   printf,
   sleep,
   throttle,
+  unwrap,
 } from '../../src/functions/utils-core';
 
 describe('convertToNormalCase', () => {
@@ -107,5 +108,32 @@ describe('normalizeText', () => {
   it('should normalize text', () => {
     expect(normalizeText('Café')).toBe('cafe');
     expect(normalizeText('  Hello!  ')).toBe('hello');
+  });
+});
+
+describe('unwrap', () => {
+  it('should return direct value as-is', () => {
+    expect(unwrap('hello')).toBe('hello');
+    expect(unwrap(42)).toBe(42);
+    expect(unwrap(null)).toBe(null);
+    expect(unwrap({ key: 'value' })).toEqual({ key: 'value' });
+  });
+
+  it('should call function and return result', () => {
+    expect(unwrap(() => 'hello')).toBe('hello');
+    expect(unwrap((name: string) => `Hello, ${name}`, 'World')).toBe(
+      'Hello, World',
+    );
+    expect(unwrap((a: number, b: number) => a + b, 2, 3)).toBe(5);
+  });
+
+  it('should handle functions with multiple arguments', () => {
+    const concat = (a: string, b: string, c: string) => `${a}-${b}-${c}`;
+    expect(unwrap(concat, 'x', 'y', 'z')).toBe('x-y-z');
+  });
+
+  it('should handle functions that return objects', () => {
+    const createObject = (id: number) => ({ id, name: `Item ${id}` });
+    expect(unwrap(createObject, 1)).toEqual({ id: 1, name: 'Item 1' });
   });
 });

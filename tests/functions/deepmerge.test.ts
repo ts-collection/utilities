@@ -99,6 +99,16 @@ describe('deepmerge', () => {
     expect(result).toEqual({ a: 1, b: 2 });
   });
 
+  it("shouldn't override values with undefined", () => {
+    const result = deepmerge({ hello: 10 }, { hello: undefined });
+    expect(result).toEqual({ hello: 10 });
+  });
+
+  it('should override values with null', () => {
+    const result = deepmerge({ hello: 10 }, { hello: null });
+    expect(result).toEqual({ hello: null });
+  });
+
   it('should handle null target', () => {
     const result = deepmerge(null as any, { a: 1 });
     expect(result).toEqual({ a: 1 });
