@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { withConcurrency } from '../../src/functions/promise';
+import { withConcurrency } from '../../src/functions/concurrency';
 
 describe('withConcurrency', () => {
   describe('basic functionality', () => {

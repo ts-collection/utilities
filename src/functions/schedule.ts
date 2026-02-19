@@ -13,6 +13,8 @@ export interface ScheduleOpts {
   delay?: number;
   /** Maximum time in milliseconds to wait for the task to complete. */
   timeout?: number;
+  /** Enable debug logging. Defaults to false. */
+  debug?: boolean;
 }
 
 /**
@@ -40,23 +42,31 @@ export interface ScheduleOpts {
  * ```
  */
 export function schedule(task: Task, options: ScheduleOpts = {}) {
-  const { retry = 0, delay = 0 } = options;
+  const { retry = 0, delay = 0, debug = false } = options;
 
   const start = Date.now();
 
   const attempt = async (triesLeft: number) => {
     try {
       await task();
-      const total = Date.now() - start;
-      console.log(`⚡[schedule.ts] Completed in ${total}ms`);
+      if (debug) {
+        const total = Date.now() - start;
+        console.log(`⚡[schedule.ts] Completed in ${total}ms`);
+      }
     } catch (err) {
-      console.log('⚡[schedule.ts] err:', err);
+      if (debug) {
+        console.log('⚡[schedule.ts] err:', err);
+      }
       if (triesLeft > 0) {
-        console.log(`⚡[schedule.ts] Retrying in ${delay}ms...`);
+        if (debug) {
+          console.log(`⚡[schedule.ts] Retrying in ${delay}ms...`);
+        }
         setTimeout(() => attempt(triesLeft - 1), delay);
       } else {
-        const total = Date.now() - start;
-        console.log(`⚡[schedule.ts] Failed after ${total}ms`);
+        if (debug) {
+          const total = Date.now() - start;
+          console.log(`⚡[schedule.ts] Failed after ${total}ms`);
+        }
       }
     }
   };

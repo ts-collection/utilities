@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { schedule } from '../../src/functions/schedule';
 
 describe('schedule', () => {
@@ -24,7 +24,7 @@ describe('schedule', () => {
 
   it('should log completion time on success', async () => {
     const task = vi.fn().mockResolvedValue(undefined);
-    schedule(task);
+    schedule(task, { debug: true });
 
     vi.runOnlyPendingTimers();
     await vi.runOnlyPendingTimersAsync();
@@ -57,7 +57,7 @@ describe('schedule', () => {
     const task = vi.fn(() => {
       throw new Error('Failure');
     });
-    schedule(task, { retry: 1, delay: 50 });
+    schedule(task, { retry: 1, delay: 50, debug: true });
 
     vi.runOnlyPendingTimers();
     expect(console.log).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe('schedule', () => {
     const task = vi.fn(() => {
       throw new Error('Persistent failure');
     });
-    schedule(task, { retry: 1, delay: 50 });
+    schedule(task, { retry: 1, delay: 50, debug: true });
 
     vi.runOnlyPendingTimers();
     vi.advanceTimersByTime(50);
@@ -98,7 +98,7 @@ describe('schedule', () => {
     const task = vi.fn(() => {
       throw new Error('Sync error');
     });
-    schedule(task, { retry: 1, delay: 50 });
+    schedule(task, { retry: 1, delay: 50, debug: true });
 
     vi.runOnlyPendingTimers();
 
@@ -115,7 +115,7 @@ describe('schedule', () => {
     const task = vi.fn(() => {
       throw new Error('Failure');
     });
-    schedule(task);
+    schedule(task, { debug: true });
 
     vi.runOnlyPendingTimers();
 
